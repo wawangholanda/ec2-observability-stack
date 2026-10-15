@@ -1,4 +1,10 @@
 ---
+- name: Install ACL utilities for monitoring configuration access
+  ansible.builtin.apt:
+    name: acl
+    state: present
+    update_cache: false
+
 - name: Create monitoring configuration directories
   ansible.builtin.file:
     path: "{{ monitoring_base_dir }}/{{ item }}"
@@ -61,3 +67,41 @@
     group: root
     mode: "0600"
   no_log: true
+
+- name: Grant Prometheus traversal access to monitoring directories
+  ansible.posix.acl:
+    path: "{{ item }}"
+    entity: "65534"
+    etype: user
+    permissions: "--x"
+    state: present
+  loop:
+    - "{{ monitoring_base_dir }}"
+    - "{{ monitoring_base_dir }}/prometheus"
+
+- name: Grant Prometheus read access to its configuration
+  ansible.posix.acl:
+    path: "{{ monitoring_base_dir }}/prometheus/prometheus.yml"
+    entity: "65534"
+    etype: user
+    permissions: "r--"
+    state: present
+
+- name: Grant Loki traversal access to monitoring directories
+  ansible.posix.acl:
+    path: "{{ item }}"
+    entity: "10001"
+    etype: user
+    permissions: "--x"
+    state: present
+  loop:
+    - "{{ monitoring_base_dir }}"
+    - "{{ monitoring_base_dir }}/loki"
+
+- name: Grant Loki read access to its configuration
+  ansible.posix.acl:
+    path: "{{ monitoring_base_dir }}/loki/config.yml"
+    entity: "10001"
+    etype: user
+    permissions: "r--"
+    state: present
