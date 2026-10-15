@@ -1,0 +1,56 @@
+---
+- name: Deploy monitoring stack
+  hosts: monitoring
+  become: true
+  tasks:
+    - name: Validate rendered Docker Compose configuration
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --env-file
+          - .env
+          - -f
+          - docker-compose.yml
+          - config
+          - --quiet
+      args:
+        chdir: "{{ monitoring_base_dir }}"
+      changed_when: false
+
+    - name: Start monitoring services
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - --env-file
+          - .env
+          - -f
+          - docker-compose.yml
+          - up
+          - -d
+      args:
+        chdir: "{{ monitoring_base_dir }}"
+      register: monitoring_compose_up
+      changed_when: >-
+        'Started' in monitoring_compose_up.stderr or
+        'Created' in monitoring_compose_up.stderr or
+        'Recreated' in monitoring_compose_up.stderr
+
+    - name: Verify monitoring containers are running
+      ansible.builtin.command:
+        argv:
+          - docker
+          - inspect
+          - --format
+          - "{% raw %}{{.State.Running}}{% endraw %}"
+          - "observability-{{ item }}"
+      loop:
+        - grafana
+        - prometheus
+        - loki
+      register: monitoring_container_status
+      changed_when: false
+      failed_when: >-
+        monitoring_container_status.rc != 0 or
+        monitoring_container_status.stdout != 'true'

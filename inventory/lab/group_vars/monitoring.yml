@@ -1,0 +1,29 @@
+---
+# Monitoring stack configuration
+monitoring_project_name: observability
+monitoring_base_dir: /opt/observability
+
+# Temporary staging on the LXC; remove archives after successful retrieval
+monitoring_backup_staging_dir: /var/tmp/observability-backup
+
+# Permanent backups on the local Ansible workstation
+monitoring_backup_local_dir: "{{ lookup('env', 'HOME') }}/.local/backups/ec2-observability-stack"
+
+# Pin container image versions for reproducible deployments
+grafana_image: grafana/grafana:13.0.9
+prometheus_image: prom/prometheus:v3.15.0
+loki_image: grafana/loki:3.7.8
+alloy_image: grafana/alloy:v1.20.1
+
+# Persistent data retention
+prometheus_retention_time: 15d
+loki_retention_period: 168h
+
+# Backup policy
+monitoring_backup_retention_days: 35
+monitoring_backup_schedule: weekly
+
+# Fast configuration backup is the default.
+# Full historical-data backup is optional and disabled by default.
+monitoring_backup_mode: config
+monitoring_full_backup_enabled: false

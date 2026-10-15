@@ -1,0 +1,84 @@
+---
+- name: Validate observability workstation prerequisites
+  hosts: localhost
+  connection: local
+  gather_facts: true
+
+  vars:
+    supported_linux_distributions:
+      - Ubuntu
+      - Debian
+      - Kali
+
+    required_commands:
+      - python
+      - ansible
+      - ansible-playbook
+      - ansible-inventory
+      - git
+      - ssh
+
+  tasks:
+    - name: Determine workstation support
+      ansible.builtin.set_fact:
+        workstation_supported: >-
+          {{
+            (
+              ansible_facts.system == 'Linux'
+              and ansible_facts.distribution in supported_linux_distributions
+            )
+            or ansible_facts.system == 'Darwin'
+          }}
+
+    - name: Display workstation platform details
+      ansible.builtin.debug:
+        msg:
+          - "System: {{ ansible_facts.system }}"
+          - "Distribution: {{ ansible_facts.distribution | default('macOS') }}"
+          - "Distribution version: {{ ansible_facts.distribution_version | default('unknown') }}"
+          - "Distribution release: {{ ansible_facts.distribution_release | default('unknown') }}"
+          - "Architecture: {{ ansible_facts.architecture }}"
+          - "Python executable: {{ ansible_facts.python.executable | default('not detected') }}"
+          - "Automated workstation support: {{ workstation_supported }}"
+
+    - name: Explain manual setup for unsupported operating systems
+      ansible.builtin.debug:
+        msg:
+          - "Automated workstation preparation is not supported on this operating system."
+          - "Install Python 3, Ansible Core, Git, and the OpenSSH client manually."
+      when: not workstation_supported
+
+    - name: Check required command availability
+      ansible.builtin.shell: "command -v {{ item | quote }}"
+      args:
+        executable: "{{ '/bin/bash' if ansible_facts.system == 'Linux' else '/bin/sh' }}"
+      loop: "{{ required_commands }}"
+      register: workstation_command_checks
+      changed_when: false
+      failed_when: false
+      when: workstation_supported
+
+    - name: Report missing required commands
+      ansible.builtin.debug:
+        msg: "Missing required command: {{ item.item }}"
+      loop: >-
+        {{
+          workstation_command_checks.results | default([])
+          | selectattr('rc', 'ne', 0)
+          | list
+        }}
+      when: workstation_supported
+
+    - name: Fail when required commands are missing
+      ansible.builtin.assert:
+        that:
+          - >-
+            workstation_command_checks.results
+            | selectattr('rc', 'ne', 0)
+            | list
+            | length == 0
+        fail_msg: >-
+          One or more required commands are missing. Activate the project
+          virtual environment and install missing prerequisites before continuing.
+        success_msg: "All required workstation commands are available."
+      when: workstation_supported

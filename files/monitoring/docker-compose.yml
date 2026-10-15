@@ -1,0 +1,75 @@
+services:
+  grafana:
+    image: "{{ grafana_image }}"
+    container_name: observability-grafana
+    restart: unless-stopped
+    ports:
+      - "10.8.0.19:3000:3000"
+    environment:
+      GF_SERVER_HTTP_ADDR: 0.0.0.0
+      GF_SERVER_HTTP_PORT: "3000"
+      GF_SECURITY_ADMIN_USER: "${GRAFANA_ADMIN_USER:?GRAFANA_ADMIN_USER must be set}"
+      GF_SECURITY_ADMIN_PASSWORD: "${GRAFANA_ADMIN_PASSWORD:?GRAFANA_ADMIN_PASSWORD must be set}"
+      GF_SECURITY_SECRET_KEY: "${GRAFANA_SECRET_KEY:?GRAFANA_SECRET_KEY must be set}"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - monitoring
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+
+  prometheus:
+    image: "{{ prometheus_image }}"
+    container_name: observability-prometheus
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time={{ prometheus_retention_time }}
+      - --web.enable-lifecycle
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - monitoring
+    mem_limit: 1536m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+
+  loki:
+    image: "{{ loki_image }}"
+    container_name: observability-loki
+    restart: unless-stopped
+    command:
+      - -config.file=/etc/loki/config.yml
+    volumes:
+      - ./loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/loki
+    networks:
+      - monitoring
+    mem_limit: 768m
+    cpus: 1.0
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  monitoring:
+    name: observability-network
+
+volumes:
+  grafana_data:
+    name: observability-grafana-data
+  prometheus_data:
+    name: observability-prometheus-data
+  loki_data:
+    name: observability-loki-data

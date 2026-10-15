@@ -1,0 +1,63 @@
+---
+- name: Create monitoring configuration directories
+  ansible.builtin.file:
+    path: "{{ monitoring_base_dir }}/{{ item }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+  loop:
+    - grafana/provisioning/datasources
+    - grafana/provisioning/dashboards
+    - grafana/dashboards
+    - prometheus
+    - loki
+
+- name: Install monitoring Docker Compose configuration
+  ansible.builtin.template:
+    src: "{{ playbook_dir }}/../files/monitoring/docker-compose.yml"
+    dest: "{{ monitoring_base_dir }}/docker-compose.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Install Prometheus configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/monitoring/prometheus/prometheus.yml"
+    dest: "{{ monitoring_base_dir }}/prometheus/prometheus.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Install Loki configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/monitoring/loki/config.yml"
+    dest: "{{ monitoring_base_dir }}/loki/config.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Install Grafana datasource provisioning
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/monitoring/grafana/provisioning/datasources/datasources.yml"
+    dest: "{{ monitoring_base_dir }}/grafana/provisioning/datasources/datasources.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Install Grafana dashboard provisioning
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/monitoring/grafana/provisioning/dashboards/dashboards.yml"
+    dest: "{{ monitoring_base_dir }}/grafana/provisioning/dashboards/dashboards.yml"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Install monitoring environment secrets
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../.secrets/.env"
+    dest: "{{ monitoring_base_dir }}/.env"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true

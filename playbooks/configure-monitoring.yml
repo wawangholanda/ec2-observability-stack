@@ -1,0 +1,6 @@
+---
+- name: Configure monitoring stack files
+  hosts: monitoring
+  become: true
+  roles:
+    - monitoring_stack

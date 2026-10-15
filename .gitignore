@@ -3,3 +3,63 @@
 
 # Ada Library Information
 *.ali
+
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+.secrets/.env
+.secrets/.env.*
+!.secrets/.env.example
+.vault_pass
+.vault-pass
+.vault-password
+vault-password
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+
+# WireGuard private configurations
+wg*.conf
+wireguard/
+
+# Local Ansible state and generated files
+.ansible/
+*.retry
+inventory/local/
+inventory/*/host_vars/*secret*
+inventory/*/group_vars/*secret*
+
+# Local Ansible inventories (keep example files in Git)
+inventory/*/hosts.yml
+inventory/*/hosts.yaml
+
+# Local monitoring backups and runtime data
+/backups/*
+!/backups/.gitkeep
+*.tar
+*.tar.gz
+*.tgz
+*.dump
+*.sqlite
+*.sqlite3
+*.db
+*.wal
+*.shm
+
+# Monitoring runtime data
+data/
+prometheus-data/
+loki-data/
+grafana-data/
+
+# Local profile lock/state (never commit active deployment state)
+/.state/
+# Profile transition backups (may contain sensitive configuration)
+/backups/profiles/
+
+# Python generated files
+__pycache__/
+*.py[cod]

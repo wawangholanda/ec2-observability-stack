@@ -1,0 +1,15 @@
+---
+- name: Preflight checks for monitoring hosts
+  hosts: monitoring
+  become: true
+  gather_facts: true
+
+  tasks:
+    - name: Display host identity and operating system
+      ansible.builtin.debug:
+        msg:
+          - "Inventory hostname: {{ inventory_hostname }}"
+          - "System hostname: {{ ansible_facts.hostname }}"
+          - "Operating system: {{ ansible_facts.distribution }} {{ ansible_facts.distribution_version }}"
+          - "Architecture: {{ ansible_facts.architecture }}"
+          - "Python: {{ ansible_facts.python.executable }}"
