@@ -1,0 +1,98 @@
+---
+- name: Validate central monitoring endpoint
+  ansible.builtin.assert:
+    that:
+      - ec2_monitoring_endpoint_host | length > 0
+      - ec2_prometheus_remote_write_port | int > 0
+      - ec2_loki_push_port | int > 0
+    fail_msg: >-
+      Set ec2_monitoring_endpoint_host and valid central monitoring ports
+      in the production inventory before configuring the agent.
+
+- name: Create Alloy configuration directory
+  ansible.builtin.file:
+    path: "{{ ec2_alloy_base_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Create persistent Alloy data directory
+  ansible.builtin.file:
+    path: "{{ ec2_alloy_data_dir }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Install Docker application log discovery helper
+  ansible.builtin.copy:
+    src: discover_docker_log_targets.py
+    dest: "{{ ec2_alloy_base_dir }}/discover_docker_log_targets.py"
+    owner: root
+    group: root
+    mode: "0750"
+
+- name: Discover Docker application log targets
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ ec2_alloy_base_dir }}/discover_docker_log_targets.py"
+      - "{{ ec2_alloy_application_image_prefix }}"
+  register: ec2_alloy_docker_log_targets_result
+  changed_when: false
+
+- name: Store Docker application log targets
+  ansible.builtin.set_fact:
+    ec2_alloy_docker_log_targets: "{{ ec2_alloy_docker_log_targets_result.stdout | from_json }}"
+
+- name: Install Alloy configuration
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: "{{ ec2_alloy_base_dir }}/config.alloy"
+    owner: root
+    group: root
+    mode: "0640"
+
+- name: Run Alloy monitoring container
+  community.docker.docker_container:
+    name: "{{ ec2_alloy_container_name }}"
+    image: "{{ ec2_alloy_image }}"
+    pull: missing
+    state: started
+    restart_policy: unless-stopped
+    command:
+      - run
+      - --storage.path=/data/alloy
+      - /etc/alloy/config.alloy
+    mounts:
+      - type: bind
+        source: "{{ ec2_alloy_base_dir }}/config.alloy"
+        target: /etc/alloy/config.alloy
+        read_only: true
+      - type: bind
+        source: "{{ ec2_alloy_data_dir }}"
+        target: /data/alloy
+      - type: bind
+        source: /proc
+        target: /host/proc
+        read_only: true
+      - type: bind
+        source: /sys
+        target: /host/sys
+        read_only: true
+      - type: bind
+        source: /
+        target: /host/root
+        read_only: true
+      - type: bind
+        source: /var/log
+        target: /host/var/log
+        read_only: true
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opts:
+      - no-new-privileges:true

@@ -1,0 +1,24 @@
+---
+# Example only. Generate the local inventory from .secrets/assets/production.yml.
+# Do not put real infrastructure addresses or private key paths in this file.
+
+all:
+  children:
+    ec2_production:
+      children:
+        frontend:
+          hosts:
+            ec2-frontend:
+              ansible_host: 192.0.2.10
+        backend:
+          hosts:
+            ec2-backend:
+              ansible_host: 192.0.2.11
+        rpc:
+          hosts:
+            ec2-rpc:
+              ansible_host: 192.0.2.12
+      vars:
+        ansible_user: ubuntu
+        ansible_become: true
+        ansible_ssh_private_key_file: "{{ lookup('env', 'HOME') }}/.ssh/example-production.pem"

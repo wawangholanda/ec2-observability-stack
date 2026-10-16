@@ -1,0 +1,23 @@
+---
+# Pin the agent image for reproducible deployments.
+ec2_alloy_image: grafana/alloy:v1.20.1
+
+# Central monitoring endpoint settings.
+# Set these in inventory/group_vars or host_vars for the target environment.
+ec2_monitoring_endpoint_host: ""
+ec2_prometheus_remote_write_port: 9090
+ec2_loki_push_port: 3100
+
+# Agent configuration and runtime.
+ec2_alloy_base_dir: /opt/ec2-monitoring
+ec2_alloy_data_dir: /opt/ec2-monitoring/data
+ec2_alloy_container_name: ec2-monitoring-alloy
+ec2_alloy_hostname_label: "{{ inventory_hostname }}"
+
+# Endpoint URLs are derived from environment-specific variables.
+ec2_prometheus_remote_write_url: "http://{{ ec2_monitoring_endpoint_host }}:{{ ec2_prometheus_remote_write_port }}/api/v1/write"
+ec2_loki_push_url: "http://{{ ec2_monitoring_endpoint_host }}:{{ ec2_loki_push_port }}/loki/api/v1/push"
+
+# Only collect Docker logs from application images matching this prefix.
+# Override this value in inventory when the application registry changes.
+ec2_alloy_application_image_prefix: "harbor.cnrsoftware.co.id/application/"

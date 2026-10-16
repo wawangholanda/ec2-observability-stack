@@ -1,0 +1,6 @@
+---
+- name: Configure monitoring agent on production EC2 instances
+  hosts: ec2_production
+  become: true
+  roles:
+    - ec2_monitoring_agent
