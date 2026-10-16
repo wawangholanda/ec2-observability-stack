@@ -113,6 +113,7 @@ esac
 
 ENV_FILE="$ROOT_DIR/.secrets/.env"
 INVENTORY_FILE="$ROOT_DIR/inventory/lab/hosts.yml"
+LOCAL_BIND_VARS_FILE="$ROOT_DIR/inventory/local/group_vars/monitoring.yml"
 
 if [[ "$MODE" == "single" ]]; then
   command -v flock >/dev/null 2>&1 ||
@@ -167,6 +168,7 @@ info "Checking required project files"
 for file in \
   "$INVENTORY_FILE" \
   "$ENV_FILE" \
+  "$LOCAL_BIND_VARS_FILE" \
   "$ROOT_DIR/playbooks/preflight.yml" \
   "$ROOT_DIR/playbooks/configure-monitoring.yml" \
   "$ROOT_DIR/files/monitoring/docker-compose.yml" \
@@ -229,7 +231,7 @@ ansible -i "$INVENTORY_FILE" monitoring --list-hosts
 
 info "Checking playbook syntax"
 ansible-playbook -i "$INVENTORY_FILE" playbooks/preflight.yml --syntax-check
-ansible-playbook -i "$INVENTORY_FILE" playbooks/configure-monitoring.yml --syntax-check
+ansible-playbook -i "$INVENTORY_FILE" -e "@$LOCAL_BIND_VARS_FILE" playbooks/configure-monitoring.yml --syntax-check
 ansible-playbook -i "$INVENTORY_FILE" playbooks/deploy-monitoring.yml --syntax-check
 
 info "Preparing temporary SSH/become authentication files"
@@ -240,17 +242,23 @@ cleanup_auth() {
 }
 trap cleanup_auth EXIT HUP INT TERM
 
-read -r -s -p "Enter the SSH/sudo password for remote host 'tools': " REMOTE_PASSWORD
+read -r -s -p "Enter the SSH password for remote host 'tools': " SSH_PASSWORD
 printf '\n'
-[[ -n "$REMOTE_PASSWORD" ]] || fail "Password must not be empty."
+[[ -n "$SSH_PASSWORD" ]] || fail "SSH password must not be empty."
+
+read -r -s -p "Enter the sudo/become password for remote host 'tools': " BECOME_PASSWORD
+printf '\n'
+[[ -n "$BECOME_PASSWORD" ]] || fail "Sudo/become password must not be empty."
+
 umask 077
-printf '%s' "$REMOTE_PASSWORD" > "$AUTH_DIR/ssh-password"
-printf '%s' "$REMOTE_PASSWORD" > "$AUTH_DIR/become-password"
-unset REMOTE_PASSWORD
+printf '%s' "$SSH_PASSWORD" > "$AUTH_DIR/ssh-password"
+printf '%s' "$BECOME_PASSWORD" > "$AUTH_DIR/become-password"
+unset SSH_PASSWORD BECOME_PASSWORD
 chmod 600 "$AUTH_DIR/ssh-password" "$AUTH_DIR/become-password"
 AUTH_ARGS=(
   --connection-password-file "$AUTH_DIR/ssh-password"
   --become-password-file "$AUTH_DIR/become-password"
+  --timeout 30
 )
 
 info "Checking SSH connectivity"
@@ -268,7 +276,7 @@ info "Initializing or validating local profile state"
 "$ROOT_DIR/scripts/profile-manager.sh" init
 
 info "Configuring monitoring stack files"
-ansible-playbook -i "$INVENTORY_FILE" playbooks/configure-monitoring.yml "${AUTH_ARGS[@]}"
+ansible-playbook -i "$INVENTORY_FILE" -e "@$LOCAL_BIND_VARS_FILE" playbooks/configure-monitoring.yml "${AUTH_ARGS[@]}"
 
 info "Deploying monitoring stack"
 ansible-playbook -i "$INVENTORY_FILE" playbooks/deploy-monitoring.yml "${AUTH_ARGS[@]}"
